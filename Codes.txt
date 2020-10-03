@@ -1,0 +1,228 @@
+TDA-MATLAB
+
+1.  Data Arrangement in consecutive form (Code 2.)
+
+2. JavaPlex Library  (Code 3.)
+      
+       For creating the Barcode
+
+3. Extraction of the interval values (Code 4.)
+
+4. Persistent Image (Code 5.)
+
+5. Wasserstein Distance (Code 6.)
+
+
+#################################################################
+
+MATLAB
+
+Code.2 (MATLAB)
+
+xx = csvread('AB_SR_sp.csv', 1, 0);
+xx = xx.';
+SR = xx(:);
+xx1 = csvread('AB_ST_sp.csv', 1, 0);
+xx1 = xx1.';
+ST = xx1(:);
+AB = reshape([SR;ST], size(SR,1), []);
+%reshape(SR,[],2);
+%save AB.mat;
+
+
+#################################################################
+
+Code.3 (JavaPlex library)
+
+import edu.stanford.math.plex4.*;
+load 'AB.mat'
+%compute up to second dimensional persistent homology (0, 1, 2 Dimension).
+max_dimension = 3;
+
+
+% for the large data if we include every data point as a vertex, will quickly contain too many simplices.
+There are two common methods for selecting landmark points. The First is to choose the landmarks
+randomly from point cloud. The second is a greedy inductive selection process called sequential maxmin.
+
+
+
+num_landmark_points = 50;
+nu = 1;
+num_divisions = 1000;
+
+
+% create a sequential maxmin landmark selector (This is divided into two process, one is random and the other is sequrntial)
+landmark_selector = api.Plex4.createMaxMinSelector(a, num_landmark_points);
+R = landmark_selector.getMaxDistanceFromPointsToLandmarks()
+max_filtration_value = R / 4;
+
+
+% create a lazy witness stream
+stream = streams.impl.LazyWitnessStream(landmark_selector.getUnderlyingMetricSpace(), landmark_selector, max_dimension, max_filtration_value, nu, num_divisions);
+stream.finalizeStream()
+
+% print out the size of the stream
+num_simplices = stream.getSize()
+
+% get persistence algorithm over Z/2Z
+persistence = api.Plex4.getModularSimplicialAlgorithm(max_dimension, 2);
+
+% compute the intervals
+intervals = persistence.computeIntervals(stream);
+
+%filtration means a sequence of growing spaces: each space in the sequence is included in the next one.
+
+% create the barcode plots
+options.filename = 'AB.mat';
+options.max_filtration_value = max_filtration_value;
+options.max_dimension = max_dimension - 1;
+plot_barcodes(intervals, options);
+figure
+scatter(a(:,1), a(:,2), '.');
+axis square
+
+####################################################################
+
+
+
+Code 4.Extraction of the interval values (MATLAB)
+
+For 0 Dimension:
+homology.barcodes.BarcodeUtility.getEndpoints(intervals, 0, false)
+(x,Y) axis
+
+For 1 Dimesion:
+homology.barcodes.BarcodeUtility.getEndpoints(intervals, 1, false)
+(x,Y) axis
+
+
+
+
+Persistence Diagram:
+
+We plotted persistence diagram Using these interval values.
+
+####################################################################
+
+Code5. For Persitence Image:
+
+%Convert a Persistence Diagran into a vector
+
+0 Dimension interval values (Excel format) = a (Double)
+1 Dimension interval values (Excel format) = b (Double)
+
+%(2,3) to (23)
+
+c= {a} (Double to cell)
+d= {b} (Double to cell)
+Combine the matrix
+A = [c;d];
+save xx.mat
+
+
+load('xx.mat')
+sig=0.0001;
+res=30;
+[H1_PIs] = make_PIs(d, res, sig); (% PI is Persistant Image)
+figure, imagesc(H1_PIs{1})
+title('Persistant Image for H1 diagram')
+figure, imagesc(H1_PIs{2})
+
+[H0_PVs] = make_PVs(c, res, sig);
+figure, imagesc(H0_PVs{1}), axis equal
+title('Persistant Vector for H0 diagram')
+figure, imagesc(H0_PVs{2}), axis equal
+
+%% Convert images to vectors
+
+% Before applying machine learning techniques, it is often helpful to
+% conver a persistent image in matrix format into a vector by concatenating
+% columns. This is accomplished by the following command.
+H1_vecs = vecs_from_PIs(H1_PIs); 
+
+
+##########################################################
+
+Code6. Wasserstein Distance (Using persistent Image 1 Dimensional)
+Between two images 
+
+im1 = imread('X.jpg');
+im2 = imread('Y.jpg');
+im1g=rgb2gray(im1); 
+im2g=rgb2gray(im2);
+%mean of im1
+grayImage=rgb2gray(im1);
+meanGL1 = mean(im1);
+subplot(1, 2, 1);
+imshow(grayImage, []);
+title('Original1 Grayscale Image');
+set(gcf, 'Position', get(0,'Screensize')); % Enlarge figure to full
+% Let's get its histogram.
+[pixelCount grayLevels] = imhist(grayImage);
+subplot(1, 2, 2);
+bar(pixelCount);
+title('Histogram1 of original image');
+xlim([0 grayLevels(end)]); % Scale x axis manually.
+yRange = ylim;
+% Calculate the mean gray level
+%meanGL = sum(pixelCount .* grayLevels) / sum(pixelCount)
+%%Calculating mean of  im2
+grayImage2=rgb2gray(im2);
+meanGL2 = mean(im2);
+figure, subplot(1, 2, 1);
+imshow(grayImage2, []);
+title('Original2 Grayscale Image');
+set(gcf, 'Position', get(0,'Screensize')); % Enlarge figure to full
+%screen.
+% Let's get its histogram.
+[pixelCount2 grayLevels2] = imhist(grayImage2);
+subplot(1, 2, 2);
+bar(pixelCount2);
+title('Histogram2 of original image');
+xlim([0 grayLevels2(end)]); % Scale x axis manually.
+yRange2 = ylim;
+% Calculate the mean gray level
+%meanGL2 = sum(pixelCount2 .* grayLevels2) / sum(pixelCount2)
+%%Calculating standard deviation
+st_d1=std(double(im1));
+st_d2=std(double(im2));
+%%Calculating Skewness
+sk1=skewness(double(im1));
+sk2=skewness(double(im2));
+%%Calculating RMS
+rms1=rms(im1);
+rms2=rms(im2);
+%%Calculating  median absolute 
+md1=mad(double(im1));
+md2=mad(double(im2));
+%%Construct a feature vector
+fv1=[meanGL1; st_d1; sk1; rms1; md1]; 
+fv2=[meanGL2; st_d2; sk2; rms2; md2];
+z1 = squeeze(fv1(1, :, :));
+z2 = squeeze(fv2(2, :, :));
+% GDF is Ground distance between two vectors
+E = gdf(z1, z2);
+
+
+
+
+
+
+
+##########################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
